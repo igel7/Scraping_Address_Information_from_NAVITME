@@ -1,3 +1,5 @@
+[日本語はこちら](ReadMe_ja.md)
+
 # Code Description
 - Scrapes and collectively retrieves the store address information of specific types of businesses from the NAVITIME website.
 - Any category listed on NAVITIME, such as convenience stores or schools, can be targeted.
