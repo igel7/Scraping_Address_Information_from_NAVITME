@@ -1,150 +1,167 @@
-import os # for checking working directory
+# %%
+import os 
 import time
 from urllib import request
-from bs4 import BeautifulSoup  # BeautifulSoup
-from urllib.error import HTTPError
-from urllib.error import URLError
+from bs4 import BeautifulSoup
+from urllib.error import HTTPError, URLError
 import datetime
+import re
+import math
 
 # -------------使用上の注意点--------------
-# Note 1.
-# If you need to change the target category (such as Seven-Eleven or pachinko parlors), you need to change the URL in two places in the code (marked with ★).
-# 対象の種別（セブンイレブンとか、パチンコとか）を変更する場合、コード中のURLを２箇所変更する必要がある（★をつけている箇所）
+# 対象の種別（セブンイレブンとか、パチンコとか）を変更する場合、
+# NAVITIMEのこのページ（https://www.navitime.co.jp/category/）に行って、
+# 対象の種別を選び、そのurlをコード中の★★★をつけている箇所に貼り付けてください。
+# 現在はとりあえずセブンイレブンのurlを貼り付けています。
+# ----------------------------------------
 
-# Note 2.
-# Inside the definition of the function gettext(), there are replacements to appropriately remove strings, which should be modified depending on the target category.
-# Similarly, within the function definition, the name of the text file where results are stored is specified, so this should be changed as needed.
-# 関数gettext()を定義している中で、replaceで文字列を適宜消しているものがあるが、これは対象の種別によって変えたほうが良い
-# 同じく関数定義の中で、結果を格納するテキストファイルの名前を指定しているので、ここは適宜変更する
+# %% 
+# 作業ディレクトリをスクリプトファイルのあるディレクトリに設定
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+# 結果を書き込むテキストファイルのパスを設定 
+current_time = datetime.datetime.now().strftime('%Y%m%d_%H%M')
+RESULT_FILE = os.path.join(BASE_DIR, f'kekka_{current_time}.txt')
 
-# Note 3.
-# Following the code that defines the function gettext(), there are two code blocks; the first is for prefectures with fewer targets, and the second is for prefectures with many targets.
-# Open the Navitime page and check; prefectures with more than 15 items × 50 pages = 750 items per page should be assigned to the second block.
-# 関数gettext()を定義しているコードの後ろに、２つコードブロックがあり、1つ目は対象が少ない都道府県、2つ目は対象が多い都道府県に対応する
-# ナビタイムのページを実際に開いてみて、1ページにつき15件×50ページ=750以上の件数がある都道府県は、2つ目のブロックに指定する
-
-# Note 4.
-# In the second block, as the codes for cities/towns/villages vary by prefecture, you need to enter the maximum number for each.
-# Also in the second block, within the loop for each page in the city/town/village, you need to input the maximum page number.
-# Here, you input the maximum page number as 15 listings per page times the number of pages.
-# 二つ目のブロックでは、都道府県によって市区町村のコードが異なるため、その最大番号を入力する必要がある（◆をつけている個所）
-# 同じく二つ目のブロックでは、「市区町村の中の各ページを繰り返し処理」の中で、最大番号を入力する必要がある
-# ここでは、1ページにつき15件 × 〇ページ、の最大ページ番号を入力する
-# -------------使用上の注意点--------------
-
-os.chdir('your working directory')
+# ※対象カテゴリのトップURLをグローバル変数として設定　★★★
+BASE_CATEGORY_URL = "https://www.navitime.co.jp/category/0201001001/"
 
 
+# 都道府県ごとの件数情報を取得する関数
+def get_prefecture_info():
+    response = request.urlopen(BASE_CATEGORY_URL)
+    soup = BeautifulSoup(response, 'html.parser')
+    response.close()
+    
+    # 辞書：キーは都道府県コード（例："01"）、値は (都道府県名, 件数)
+    pref_info = {}
+    
+    # 各都道府県のリンク情報を取得
+    for a in soup.select("ul.shortcut-link-area li a.shortcut-link-area__item__link"):
+        # 例: "北海道(1020)" の形式
+        text = a.get_text(strip=True)
+        m = re.search(r"(.+?)\((\d+)\)", text)
+        if m:
+            name = m.group(1)
+            count = int(m.group(2))
+            # href例: "https://www.navitime.co.jp/category/0201001001/01/"
+            href = a.get("href")
+            code = href.rstrip('/').split('/')[-1]
+            pref_info[code] = (name, count)
+            print(f"{name}({code}): {count}件")
+    return pref_info
+
+# 取得した都道府県情報
+pref_info = get_prefecture_info()
+# print(pref_info)
+
+# 750件以上の場合は市区町村レベルで処理するので、そのコードだけを抽出
+big_pref_codes = {code for code, (name, count) in pref_info.items() if count >= 750}
+print("750件以上の結果がある都道府県のコード:", big_pref_codes)
+
+# ページ取得用関数
 def gettext():
-
+    global ken_code, current_pref_name  # 外部で設定する都道府県名とコードを利用
     response = request.urlopen(url)
-    print(url)
-    soup = BeautifulSoup(response)
+    print("Fetching:", url)
+    soup = BeautifulSoup(response, 'html.parser')  # パーサーを指定
     response.close()
 
-    # handle the beautiful soup object 
- 
+    # BeautifulSoupオブジェクトの処理
     for t in soup.find_all(class_="spot-text"):
-        texts=t.get_text()
-        # Name and directory of a result text file
-        with open('your working directory\\kekka.txt', 'a', encoding='UTF-8') as f:
-            print(str(ken_code) + '|' +texts.replace('\n','').replace('セブンイレブン ','').replace('電話番号','|').replace('住所','|').replace('営業時間','|').replace('取り扱い','|').replace('アクセス','|'), file = f)
-        # print(texts.replace('\n','').replace('取り扱い','|'))
-        
+        texts = t.get_text()
+        # 改行・各要素の区切りを置換
+        line = (str(ken_code) + '|' + texts.replace('\n','')
+                .replace('電話番号','|')
+                .replace('住所','|')
+                .replace('営業時間','|')
+                .replace('取り扱い','|')
+                .replace('アクセス','|'))
+        # 「駅から徒歩」が含まれる部分を削除（先頭の | から始まる部分を除去）
+        line = re.sub(r'\|[^|]*駅から徒歩[^|]*', '', line)
+        # 対象都道府県名を先頭に追加（都道府県名|番号|・・・）
+        line = current_pref_name + '|' + line
+        with open(RESULT_FILE, 'a', encoding='UTF-8') as f:
+            print(line, file=f)
 
-# just for debug
-# url = 'https://www.navitime.co.jp/category/0201001001/13'
-# ken = str(9).zfill(2)
-# gettext()
+# %% メイン処理
+start_time = time.time()  # 処理開始のタイムスタンプ
 
-# Target hit Number < 750
-# 対象が750件以下の都道府県に対応した処理
+# ※テストモード：最初の5都道府県のみ処理する場合、以下の設定のコメントアウトを外して使用してください。
+TEST_MODE = True
+TEST_PREFECTURE_COUNT = 5  # テストする都道府県数
 
-for ken_code in range(1,48): #Iterating through prefectures. Note that the end value indicates "less than".都道府県の繰り返し処理。エンド値は「未満」を示すことに注意！
-    print(ken_code)
-    hajime = 'https://www.navitime.co.jp/category//0504001/{}'.format(str(ken_code).zfill(2)) # ★
-    url = hajime
+max_prefecture = 48
+if 'TEST_MODE' in globals() and TEST_MODE:
+    max_prefecture = min(TEST_PREFECTURE_COUNT + 1, 48)  # 1～TEST_PREFECTURE_COUNT
+    print(f"テストモード: 最初の{TEST_PREFECTURE_COUNT}都道府県のみ処理します")
+
+total_pref = max_prefecture - 1
+current_count = 0
+total_records = 0  # 取得した全体の件数をカウントする変数
+
+for ken_code in range(1, max_prefecture):
+    current_count += 1
     ken = str(ken_code).zfill(2)
-
-    # Prefectures with more than 750 results must be excluded here.
-    # 750件以上結果がある県はここで除外設定しないといけない
-    if ken_code in [1,12,13,14,23,27,28,]:
-        print("pass")
-        pass
+    if ken not in pref_info:
+        print(f"{ken} の情報が見つからなかったのでスキップします")
+        continue
+    # 外部にグローバルで利用する対象都道府県名
+    current_pref_name, count = pref_info[ken]
+    
+    # 750件以上の結果がある場合は市区町村レベルで取得
+    if ken in big_pref_codes:
+        print(f"[{current_count}/{total_pref}] {current_pref_name}({ken}): {count}件 - 市区町村レベルで取得します")
+        for t in range(101, 564):
+            area = ken + str(t)
+            # 市区町村レベルの場合もBASE_CATEGORY_URLを利用
+            hajime = f"{BASE_CATEGORY_URL}{area}"
+            url = hajime
+            dt_now = datetime.datetime.now()
+            print(f"  {area}: {dt_now.strftime('%Y年%m月%d日_%H:%M:%S')}")
+            try:
+                gettext()
+            except (HTTPError, URLError):
+                print(f"   Error_pass: {area}")
+                continue
+            for i in range(1, 12):
+                tsugi = hajime + f'/?page={i}'
+                url = tsugi
+                print(f"    {area} - page: {i}")
+                try:
+                    gettext()
+                    time.sleep(2)
+                except (HTTPError, URLError):
+                    print(f"    Error_pass: {area} page {i}")
+                    continue
     else:
-        # The format of the URL is different for the first page.
-        # 1ページ目はURLの体裁が違う
-        gettext()
-        print(url)# check URL
-        dt_now = datetime.datetime.now()
-        print(str(ken_code) + '  ' + dt_now.strftime('%Y年%m月%d日_%H:%M:%S'))
-
-        # Loop through each page within the prefectures.
-        # 都道府県の中の各ページを繰り返し処理
-        for i in range(1,51): 
-            tsugi = hajime + '/?page={}'.format(i)
-            url = tsugi
-            print(str(ken_code) + '   page: ' + str(i))
-            #print(url) # check URL again
+        # 都道府県レベルの場合：1ページあたり15件とし、検索結果件数から最大ページ数を計算
+        pages_to_fetch = math.ceil(count / 15) + 1
+        print(f"[{current_count}/{total_pref}] {current_pref_name}({ken}): {count}件 - 都道府県レベルで取得します (1～{pages_to_fetch}ページ)")
+        hajime = f"{BASE_CATEGORY_URL}{ken}"
+        for page in range(1, pages_to_fetch + 1):
+            if page == 1:
+                url = hajime
+            else:
+                url = hajime + f'/?page={page}'
+            print(f"    {current_pref_name}({ken}) - page: {page}/{pages_to_fetch}")
             try:
-                gettext() # show text
-                
-                # Allow a little time between requests as a courtesy to avoid overloading the server and to prevent errors that may cause skipping of pages if requests are made too quickly.
-                # 少し時間を空けるのは、マナーと、速すぎるとエラーで途中のページを飛ばすことがあるため
-                time.sleep(2) 
-            except HTTPError:
-                print("HTTPError_pass")
-                pass
-            except URLError:
-                print("URLError_pass")
-                pass
-
-    
-# Process tailored for prefectures with more than 751 entries.
-# 対象が751件以上の都道府県に対応した処理 
-ken = [11, 13, 14, 23, 27]
-for ken_code in ken:
-    # Enter the maximum value plus one!
-    #　◆ 最大値＋１を入力すること！
-    for t in range(101,564): 
-        area = str(ken_code).zfill(2)+str(t)
-        hajime = 'https://www.navitime.co.jp/category/0504001/' + area # ★
-        url = hajime
-        dt_now = datetime.datetime.now()
-        print(area + '  ' + dt_now.strftime('%Y年%m月%d日_%H:%M:%S'))
-        try:
-            gettext()#1ページ目はURLの体裁が違う
-        except HTTPError:
-            print("HTTPError_pass")
-            continue
-        except URLError:
-            print("URLError_pass")
-            continue
-        # print(url) # check URL
-    
-        # Loop through each page within the cities, towns, and villages.
-        # 市区町村の中の各ページを繰り返し処理
-        for i in range(1,12):
-            tsugi = hajime + '/?page={}'.format(i)
-            url = tsugi
-            print('page: ' + str(i))
-            #print(url) # check URL
-            try:
-                gettext() #see text
-
-                # Allow a little time between requests as a courtesy to avoid overloading the server and to prevent errors that may cause skipping of pages if requests are made too quickly.
-                # 少し時間を空けるのは、マナーと、速すぎるとエラーで途中のページを飛ばすことがあるため
+                gettext()
                 time.sleep(2)
-            except HTTPError:
-                print("HTTPError_pass")
-                pass
-            except URLError:
-                print("URLError_pass")
-                pass
-                        
-    
-    
-    
-    
-    
-    
+            except (HTTPError, URLError):
+                print(f"    Error_pass: {current_pref_name}({ken}) page {page}")
+                continue
+
+# 取得がすべて完了したらサマリを出力
+elapsed_time = time.time() - start_time
+if os.path.exists(RESULT_FILE):
+    with open(RESULT_FILE, 'r', encoding='UTF-8') as f:
+        total_records = sum(1 for _ in f)
+else:
+    total_records = 0
+
+print("\n==== 取得完了 ====")
+print(f"取得した都道府県数: {current_count}")
+print(f"取得した全体の件数: {total_records}")
+print(f"かかった時間: {elapsed_time:.1f}秒")
+print(f"結果ファイル名: {os.path.basename(RESULT_FILE)}")
+print(f"結果ファイルの保存先: {os.path.dirname(RESULT_FILE)}")
