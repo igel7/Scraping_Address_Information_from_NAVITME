@@ -20,11 +20,14 @@
 ```
 
 - これがどういうことかというと、NAVITIMEの[カテゴリページ](https://www.navitime.co.jp/category/)にいって、そこから取得したい対象のカテゴリ（遊園地とか、セブンイレブンとか、ゴルフ、とかそういうやつ）を選んで、urlをチェックするわけですな。
+
 - ↓これでいうなら、もし遊園地を選ぶなら、ここをクリックする
-- ![スクリーンショット 2025-05-02 202010](https://github.com/user-attachments/assets/6f5c31b6-dbe7-495f-99b0-fe16d2c00867)
-- ほんで、urlをコピーして...
-- ![スクリーンショット 2025-05-02 202327](https://github.com/user-attachments/assets/7ac5df30-2f0f-4d30-9117-c3b89647fe7a)
-- ここの部分に貼りつけするってわけ。
+![スクリーンショット 2025-05-02 202010](https://github.com/user-attachments/assets/6f5c31b6-dbe7-495f-99b0-fe16d2c00867)
+
+ほんで、urlをコピーして...
+![スクリーンショット 2025-05-02 202327](https://github.com/user-attachments/assets/7ac5df30-2f0f-4d30-9117-c3b89647fe7a)
+
+- ここの部分に貼りつけるってわけ。
 ```python: navitime_sc.py
 # ※対象カテゴリのトップURLをグローバル変数として設定　★★★
 BASE_CATEGORY_URL = "https://www.navitime.co.jp/category/0101001/"
