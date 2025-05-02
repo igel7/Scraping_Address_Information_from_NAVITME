@@ -23,7 +23,7 @@ current_time = datetime.datetime.now().strftime('%Y%m%d_%H%M')
 RESULT_FILE = os.path.join(BASE_DIR, f'kekka_{current_time}.txt')
 
 # ※対象カテゴリのトップURLをグローバル変数として設定　★★★
-BASE_CATEGORY_URL = "https://www.navitime.co.jp/category/0201001001/"
+BASE_CATEGORY_URL = "https://www.navitime.co.jp/category/0101001/"
 
 
 # 都道府県ごとの件数情報を取得する関数
@@ -75,19 +75,28 @@ def gettext():
                 .replace('住所','|')
                 .replace('営業時間','|')
                 .replace('取り扱い','|')
-                .replace('アクセス','|'))
+                .replace('アクセス','|')
+                )
         # 「駅から徒歩」が含まれる部分を削除（先頭の | から始まる部分を除去）
         line = re.sub(r'\|[^|]*駅から徒歩[^|]*', '', line)
         # 対象都道府県名を先頭に追加（都道府県名|番号|・・・）
         line = current_pref_name + '|' + line
+        # 電話番号(5列目)より後ろの文字列を除去するため、先頭の数字だけを抽出
+        cols = line.split('|')
+        if len(cols) >= 5:
+            m = re.match(r'(\d+)', cols[4])
+            if m:
+                cols[4] = m.group(1)
+            line = '|'.join(cols[:5])
         with open(RESULT_FILE, 'a', encoding='UTF-8') as f:
             print(line, file=f)
 
 # %% メイン処理
 start_time = time.time()  # 処理開始のタイムスタンプ
 
-# ※テストモード：最初の5都道府県のみ処理する場合、以下の設定のコメントアウトを外して使用してください。
-TEST_MODE = True
+# ※テストモード：最初の5都道府県のみ処理する場合、以下のテストモードをFalseにして使用してください。
+# 最初の5都道府県のみ処理する場合、TEST_MODEをTrueにしてください。
+TEST_MODE = False
 TEST_PREFECTURE_COUNT = 5  # テストする都道府県数
 
 max_prefecture = 48
