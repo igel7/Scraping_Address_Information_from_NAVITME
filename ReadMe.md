@@ -1,46 +1,37 @@
-[日本語はこちら](ReadMe_ja.md)
+# コードの説明
+- NAVITIMEのウェブサイトから、特定の種類のビジネスの店舗住所、電話番号などの情報をbeautifulsoup4を使ったスクレイピングで一括取得する。
+- コンビニとか学校とか、NAVITIMEに掲載のあるカテゴリなら何でも可能。
 
-## Code Description
-- This script scrapes store information (such as address, phone number, etc.) in bulk from the NAVITIME website using `beautifulsoup4`.
-- You can target any category listed on NAVITIME, such as convenience stores, schools, etc.
-
-## How to Use
-- Simply run the script, and a result file named `kekka_yymmdd_hhmm.txt` will be generated in the same folder where `navitime_sc.py` is located.
-- The output file will contain facility names, addresses, and phone numbers, separated by the delimiter `|`.
-- **Important:** As noted in the comments in the code, the URL marked with `★★★` must be updated based on the target category you wish to scrape.
-
-```python
-# -------------Usage Notes--------------
-# To change the target category (e.g., Seven-Eleven, pachinko, etc.),
-# go to this NAVITIME page: https://www.navitime.co.jp/category/
-# Select the desired category and replace the URL in the script marked with ★★★.
-# The current setting uses the URL for amusement parks.
-# --------------------------------------
+# 使い方
+- 基本的にはコードを実行すれば、navitime_sc.pyが置いてあるのと同じフォルダに、kekka_yymmdd_hhmm.txtという名前の結果ファイルが生成されて、そこに住所とか施設名、電話番号が区切り文字「|」で区切られた形で入るはず。
+- 一つだけ注意点として、コード中の「使用上の注意点」のところにも書いているが、コード内で★★★の印をつけている場所のurlは、取得した対象施設カテゴリによって変更しなくてはいけません。
+```python: navitime_sc.py
+# -------------使用上の注意点--------------
+# 対象の種別（セブンイレブンとか、パチンコとか）を変更する場合、
+# NAVITIMEのこのページ（https://www.navitime.co.jp/category/）に行って、
+# 対象の種別を選び、そのurlをコード中の★★★をつけている箇所に貼り付けてください。
+# 現在はとりあえず遊園地のurlを貼り付けています。
+# ----------------------------------------
 ```
 
-- In other words, visit the [NAVITIME category page](https://www.navitime.co.jp/category/),  
-  choose the category you want (e.g., amusement parks, Seven-Eleven, golf, etc.), and copy its URL.
+- これがどういうことかというと、NAVITIMEの[カテゴリページ](https://www.navitime.co.jp/category/)にいって、そこから取得したい対象のカテゴリ（遊園地とか、セブンイレブンとか、ゴルフ、とかそういうやつ）を選んで、urlをチェックするわけですな。
 
-- For example, if you select "Amusement Parks", click here:
+- ↓これでいうなと、もし遊園地を選ぶなら、ここをクリックする
+![スクリーンショット 2025-05-02 202010](https://github.com/user-attachments/assets/6f5c31b6-dbe7-495f-99b0-fe16d2c00867)
 
-![Screenshot 2025-05-02 202010](https://github.com/user-attachments/assets/6f5c31b6-dbe7-495f-99b0-fe16d2c00867)
+ほんで、urlをコピーして...
+![スクリーンショット 2025-05-02 202327](https://github.com/user-attachments/assets/7ac5df30-2f0f-4d30-9117-c3b89647fe7a)
 
-- Then copy the URL:
-
-![Screenshot 2025-05-02 202327](https://github.com/user-attachments/assets/7ac5df30-2f0f-4d30-9117-c3b89647fe7a)
-
-- And paste it into the following part of the script:
-
-```python
-# Set the base URL for the target category as a global variable ★★★
+- ここ↓の部分に貼りつけるってわけ。
+```python: navitime_sc.py
+# ※対象カテゴリのトップURLをグローバル変数として設定　★★★
 BASE_CATEGORY_URL = "https://www.navitime.co.jp/category/0101001/"
 ```
 
-- After that, just run the script normally.
+- あとは普通に実行するだけでよし。
 
-## Technical Considerations
-- NAVITIME limits search results to a maximum of 50 pages.  
-  Since each page shows 15 entries, the maximum total per query is 750 results.
-- For prefectures that exceed 750 results, the script switches to a separate process that collects data by municipality.
-- Since municipality codes vary by prefecture and retrieving data by municipality is time-consuming,  
-  the script smartly chooses between prefecture-level and municipality-level scraping to balance speed and completeness (as much as possible).
+
+# 技術上の工夫点
+- NAVITIMEでは、最大50ページしか結果が表示されないため、1ページあたり15件掛ける50ページの、750件を超える結果がある都道府県の場合、一筋縄ではいかない。
+- 750件以上の検索結果がある都道府県は別処理に飛ばし、そちらでは市区町村単位に分けて情報取得するようにしている。
+- 市区町村コードは都道府県によって違うこともあり、市区町村の処理は相当時間がかかるため、都道府県レベルの処理と使い分けることで、速さと網羅性を両立させている（つもり）。
